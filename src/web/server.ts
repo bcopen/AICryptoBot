@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { NewContract } from '../types';
+import { NewContract, ChainType } from '../types';
 
 const app = express();
 app.use(cors());
@@ -10,6 +10,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const contracts: NewContract[] = [];
 let lastUpdate = Date.now();
+
+interface MonitoredContract {
+  address: string;
+  chain: ChainType;
+  addedAt: number;
+  transactions: NewContract[];
+}
+
+const monitoredContracts: Map<string, MonitoredContract> = new Map();
 
 // Demo data for testing
 const demoData: NewContract[] = [
@@ -61,6 +70,53 @@ app.get('/api/contracts', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
+});
+
+app.post('/api/monitor', (req, res) => {
+  const { address, chain } = req.body;
+  if (!address || !chain) {
+    return res.status(400).json({ error: 'Address and chain are required' });
+  }
+  
+  const key = `${chain}:${address.toLowerCase()}`;
+  if (monitoredContracts.has(key)) {
+    return res.json({ message: 'Already monitoring', contract: monitoredContracts.get(key) });
+  }
+  
+  const monitored: MonitoredContract = {
+    address: address.toLowerCase(),
+    chain: chain as ChainType,
+    addedAt: Date.now(),
+    transactions: []
+  };
+  
+  monitoredContracts.set(key, monitored);
+  res.json({ message: 'Now monitoring', contract: monitored });
+});
+
+app.get('/api/monitor/:chain/:address', (req, res) => {
+  const { chain, address } = req.params;
+  const key = `${chain}:${address.toLowerCase()}`;
+  const contract = monitoredContracts.get(key);
+  
+  if (!contract) {
+    return res.status(404).json({ error: 'Contract not found' });
+  }
+  
+  res.json(contract);
+});
+
+app.get('/api/monitor', (req, res) => {
+  const list = Array.from(monitoredContracts.values());
+  res.json(list);
+});
+
+app.delete('/api/monitor/:chain/:address', (req, res) => {
+  const { chain, address } = req.params;
+  const key = `${chain}:${address.toLowerCase()}`;
+  const deleted = monitoredContracts.delete(key);
+  
+  res.json({ success: deleted });
 });
 
 const PORT = process.env.PORT || 3000;

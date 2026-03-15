@@ -37,6 +37,92 @@
     .sol { color: #14f195; }
     .bsc { color: #f3ba2f; }
     .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    
+    .monitor-panel {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .monitor-panel h3 {
+      margin-bottom: 15px;
+      color: #58a6ff;
+    }
+    .monitor-form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .monitor-form input, .monitor-form select {
+      padding: 10px 15px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #e6edf3;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .monitor-form input {
+      flex: 1;
+      min-width: 300px;
+    }
+    .monitor-form select {
+      min-width: 120px;
+    }
+    .monitor-form button {
+      padding: 10px 20px;
+      background: #238636;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .monitor-form button:hover {
+      background: #2ea043;
+    }
+    .monitor-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .monitor-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: #21262d;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .monitor-item .addr {
+      font-family: monospace;
+      color: #58a6ff;
+    }
+    .monitor-item .remove {
+      color: #f85149;
+      cursor: pointer;
+    }
+    
+    .tab-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #e6edf3;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: #30363d;
+      border-color: #58a6ff;
+    }
+    
     .filter-bar {
       margin-bottom: 20px;
       display: flex;
@@ -118,6 +204,8 @@
       color: #8b949e;
       font-size: 12px;
     }
+    .section { display: none; }
+    .section.active { display: block; }
   </style>
 </head>
 <body>
@@ -144,15 +232,39 @@
   </div>
   
   <div class="container">
-    <div class="filter-bar">
-      <button class="filter-btn active" data-filter="all">全部</button>
-      <button class="filter-btn" data-filter="ETH">ETH</button>
-      <button class="filter-btn" data-filter="SOL">Solana</button>
-      <button class="filter-btn" data-filter="BSC">BSC</button>
+    <div class="monitor-panel">
+      <h3>🔍 合约监控</h3>
+      <div class="monitor-form">
+        <input type="text" id="contractInput" placeholder="输入合约地址 (0x...)">
+        <select id="chainSelect">
+          <option value="ETH">ETH</option>
+          <option value="SOL">Solana</option>
+          <option value="BSC">BSC</option>
+        </select>
+        <button onclick="addMonitor()">开始监控</button>
+      </div>
+      <div class="monitor-list" id="monitorList"></div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab('new')">新合约监控</button>
+      <button class="tab-btn" onclick="showTab('track')">合约追踪</button>
     </div>
     
-    <div class="contract-list" id="contractList">
-      <div class="empty">等待新合约监控数据...</div>
+    <div class="section active" id="section-new">
+      <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">全部</button>
+        <button class="filter-btn" data-filter="ETH">ETH</button>
+        <button class="filter-btn" data-filter="SOL">Solana</button>
+        <button class="filter-btn" data-filter="BSC">BSC</button>
+      </div>
+      <div class="contract-list" id="contractList"></div>
+    </div>
+    
+    <div class="section" id="section-track">
+      <div class="contract-list" id="trackList">
+        <div class="empty">暂无追踪中的合约</div>
+      </div>
     </div>
     
     <div class="last-update" id="lastUpdate">最后更新: --</div>
@@ -161,10 +273,9 @@
   <script>
     let currentFilter = 'all';
     let contracts = [];
+    let monitored = [];
 
     const chainNames = { ETH: '以太坊', SOL: 'Solana', BSC: 'BSC' };
-    const chainColors = { ETH: 'eth', SOL: 'sol', bsc: 'bsc' };
-
     const chainLinks = {
       ETH: (addr, tx) => `https://etherscan.io/address/${addr}`,
       SOL: (addr, tx) => `https://solscan.io/tx/${tx}`,
@@ -176,6 +287,7 @@
     }
 
     function shortenAddress(addr) {
+      if (!addr) return '';
       return addr.slice(0, 6) + '...' + addr.slice(-4);
     }
 
@@ -187,7 +299,7 @@
       const list = document.getElementById('contractList');
       
       if (filtered.length === 0) {
-        list.innerHTML = '<div class="empty">暂无监控数据</div>';
+        list.innerHTML = '<div class="empty">等待新合约监控数据...</div>';
         return;
       }
 
@@ -206,13 +318,137 @@
         </div>
       `).join('');
 
-      // Update counts
       const counts = { ETH: 0, SOL: 0, BSC: 0 };
       contracts.forEach(c => counts[c.chain]++);
       document.getElementById('ethCount').textContent = counts.ETH;
       document.getElementById('solCount').textContent = counts.SOL;
       document.getElementById('bscCount').textContent = counts.BSC;
       document.getElementById('totalCount').textContent = contracts.length;
+    }
+
+    async function renderMonitorList() {
+      try {
+        const res = await fetch('/api/monitor');
+        monitored = await res.json();
+        
+        const list = document.getElementById('monitorList');
+        if (monitored.length === 0) {
+          list.innerHTML = '';
+          return;
+        }
+        
+        list.innerHTML = monitored.map(m => `
+          <div class="monitor-item">
+            <span class="chain-badge chain-${m.chain}">${m.chain}</span>
+            <span class="addr">${shortenAddress(m.address)}</span>
+            <span class="remove" onclick="removeMonitor('${m.chain}', '${m.address}')">✕</span>
+          </div>
+        `).join('');
+        
+        loadTrackedContracts();
+      } catch (e) {
+        console.error('Error loading monitors:', e);
+      }
+    }
+
+    async function loadTrackedContracts() {
+      const list = document.getElementById('trackList');
+      
+      if (monitored.length === 0) {
+        list.innerHTML = '<div class="empty">暂无追踪中的合约</div>';
+        return;
+      }
+
+      let html = '';
+      for (const m of monitored) {
+        try {
+          const res = await fetch(`/api/monitor/${m.chain}/${m.address}`);
+          const data = await res.json();
+          
+          if (data.transactions && data.transactions.length > 0) {
+            html += data.transactions.map(c => `
+              <div class="contract-card">
+                <div class="contract-header">
+                  <span class="chain-badge chain-${c.chain}">${chainNames[c.chain]}</span>
+                  <span class="timestamp">${formatTime(c.timestamp)}</span>
+                </div>
+                <div class="contract-address">${c.address}</div>
+                <div class="contract-details">
+                  <div class="detail-item">区块: <span class="detail-value">${c.blockNumber.toLocaleString()}</span></div>
+                  <div class="detail-item">交易: <a href="${chainLinks[c.chain](c.address, c.txHash)}" target="_blank" class="tx-link">${shortenAddress(c.txHash)}</a></div>
+                </div>
+              </div>
+            `).join('');
+          } else {
+            html += `
+              <div class="contract-card">
+                <div class="contract-header">
+                  <span class="chain-badge chain-${m.chain}">${chainNames[m.chain]}</span>
+                </div>
+                <div class="contract-address">${m.address}</div>
+                <div class="contract-details">
+                  <div class="detail-item">状态: <span class="detail-value">监控中，暂无交易记录</span></div>
+                </div>
+              </div>
+            `;
+          }
+        } catch (e) {
+          console.error('Error loading contract:', e);
+        }
+      }
+      
+      list.innerHTML = html || '<div class="empty">暂无追踪中的合约</div>';
+    }
+
+    async function addMonitor() {
+      const address = document.getElementById('contractInput').value.trim();
+      const chain = document.getElementById('chainSelect').value;
+      
+      if (!address) {
+        alert('请输入合约地址');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/monitor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, chain })
+        });
+        
+        if (res.ok) {
+          document.getElementById('contractInput').value = '';
+          renderMonitorList();
+        } else {
+          const data = await res.json();
+          alert(data.error || '添加失败');
+        }
+      } catch (e) {
+        alert('添加失败: ' + e.message);
+      }
+    }
+
+    async function removeMonitor(chain, address) {
+      try {
+        await fetch(`/api/monitor/${chain}/${address}`, { method: 'DELETE' });
+        renderMonitorList();
+      } catch (e) {
+        alert('删除失败: ' + e.message);
+      }
+    }
+
+    function showTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      
+      if (tab === 'new') {
+        document.querySelector('.tab-btn:first-child').classList.add('active');
+        document.getElementById('section-new').classList.add('active');
+      } else {
+        document.querySelector('.tab-btn:last-child').classList.add('active');
+        document.getElementById('section-track').classList.add('active');
+        loadTrackedContracts();
+      }
     }
 
     async function fetchData() {
@@ -227,7 +463,6 @@
       }
     }
 
-    // Filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -237,9 +472,14 @@
       });
     });
 
-    // Auto refresh
+    document.getElementById('contractInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') addMonitor();
+    });
+
     fetchData();
+    renderMonitorList();
     setInterval(fetchData, 3000);
+    setInterval(renderMonitorList, 10000);
   </script>
 </body>
 </html>
