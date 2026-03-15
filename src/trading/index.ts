@@ -1,6 +1,7 @@
 import { BinanceExchange } from './binance';
 import { OKXExchange } from './okx';
 import { UniswapExchange } from './uniswap';
+import { QVerisClient, searchTradingTools, executeTradingTool, initQVeris, getQVerisClient, QVerisTool } from './qveris';
 import { Order, ExchangeType, Balance, Ticker, CreateOrderRequest } from './types';
 
 const orders: Map<string, Order> = new Map();
@@ -165,3 +166,6 @@ export async function getOpenOrders(exchange: ExchangeType): Promise<Order[]> {
 export function getOrders(): Order[] {
   return Array.from(orders.values());
 }
+
+export { QVerisClient, QVerisTool };
+export { initQVeris, searchTradingTools, executeTradingTool, getQVerisClient };

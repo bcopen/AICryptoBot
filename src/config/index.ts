@@ -1,5 +1,5 @@
 import { MonitorOptions, NotificationConfig } from '../types';
-import { initExchange } from '../trading';
+import { initExchange, initQVeris } from '../trading';
 
 export const config: MonitorOptions = {
   chains: ['ETH', 'SOL', 'BSC'],
@@ -29,6 +29,9 @@ export const tradingConfig = {
   UNISWAP: {
     rpcUrl: process.env.ETH_RPC_URL || 'https://eth.llamarpc.com',
     privateKey: process.env.UNISWAP_PRIVATE_KEY || ''
+  },
+  QVERIS: {
+    apiKey: process.env.QVERIS_API_KEY || ''
   }
 };
 
@@ -41,6 +44,9 @@ export function initTrading(): void {
   }
   if (tradingConfig.UNISWAP.privateKey && tradingConfig.UNISWAP.rpcUrl) {
     initExchange({ type: 'UNISWAP', ...tradingConfig.UNISWAP });
+  }
+  if (tradingConfig.QVERIS.apiKey) {
+    initQVeris(tradingConfig.QVERIS.apiKey);
   }
 }
 

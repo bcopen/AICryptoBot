@@ -9,7 +9,11 @@ import {
   createOrder, 
   cancelOrder, 
   getOpenOrders,
-  getOrders 
+  getOrders,
+  searchTradingTools,
+  executeTradingTool,
+  getQVerisClient,
+  QVerisTool
 } from '../trading';
 import { ExchangeType } from '../trading/types';
 
@@ -203,6 +207,46 @@ app.get('/api/trading/orders/:exchange', async (req, res) => {
 
 app.get('/api/trading/orders', (req, res) => {
   res.json(getOrders());
+});
+
+// QVeris API endpoints
+app.get('/api/qveris/search', async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+    
+    const tools = await searchTradingTools(query as string);
+    res.json({ tools });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post('/api/qveris/execute', async (req, res) => {
+  try {
+    const { tool_id, parameters } = req.body;
+    
+    if (!tool_id || !parameters) {
+      return res.status(400).json({ error: 'tool_id and parameters are required' });
+    }
+    
+    const result = await executeTradingTool(tool_id, parameters);
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/qveris/tools', (req, res) => {
+  const client = getQVerisClient();
+  if (!client) {
+    return res.status(400).json({ error: 'QVeris not initialized' });
+  }
+  
+  const tools = client.getAvailableTools();
+  res.json({ tools });
 });
 
 const PORT = process.env.PORT || 3000;
