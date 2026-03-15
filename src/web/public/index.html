@@ -20,7 +20,26 @@
       justify-content: space-between;
       align-items: center;
     }
+    .header-left { display: flex; align-items: center; gap: 20px; }
     .header h1 { font-size: 24px; color: #58a6ff; }
+    .wallet-btn {
+      padding: 8px 16px;
+      background: #238636;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .wallet-btn:hover { background: #2ea043; }
+    .wallet-btn.connected { background: #1f6feb; }
+    .wallet-address {
+      font-family: monospace;
+      font-size: 13px;
+    }
     .stats {
       display: flex;
       gap: 20px;
@@ -210,7 +229,13 @@
 </head>
 <body>
   <div class="header">
-    <h1>🔗 多链新合约监控</h1>
+    <div class="header-left">
+      <h1>🔗 多链新合约监控</h1>
+    </div>
+    <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">
+      <span id="walletIcon">🔗</span>
+      <span id="walletText">连接钱包</span>
+    </button>
     <div class="stats">
       <div class="stat">
         <div class="stat-value eth" id="ethCount">0</div>
@@ -274,8 +299,88 @@
     let currentFilter = 'all';
     let contracts = [];
     let monitored = [];
+    let walletAddress = null;
+    let currentChain = 'ETH';
 
     const chainNames = { ETH: '以太坊', SOL: 'Solana', BSC: 'BSC' };
+    const chainIds = { ETH: 1, BSC: 56 };
+
+    async function connectWallet() {
+      if (typeof window.ethereum === 'undefined') {
+        alert('请安装 MetaMask 钱包');
+        return;
+      }
+      
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        walletAddress = accounts[0];
+        
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        currentChain = Object.keys(chainIds).find(key => chainIds[key] === parseInt(chainId, 16)) || 'ETH';
+        
+        updateWalletUI();
+        saveWalletToStorage();
+      } catch (err) {
+        console.error('Wallet connection error:', err);
+        alert('连接钱包失败: ' + err.message);
+      }
+    }
+
+    function updateWalletUI() {
+      const btn = document.getElementById('walletBtn');
+      const text = document.getElementById('walletText');
+      const icon = document.getElementById('walletIcon');
+      
+      if (walletAddress) {
+        btn.classList.add('connected');
+        text.textContent = shortenAddress(walletAddress);
+        icon.textContent = '✅';
+        
+        // Set chain select based on connected chain
+        if (chainIds[currentChain]) {
+          document.getElementById('chainSelect').value = currentChain;
+        }
+      } else {
+        btn.classList.remove('connected');
+        text.textContent = '连接钱包';
+        icon.textContent = '🔗';
+      }
+    }
+
+    function shortenAddress(addr) {
+      if (!addr) return '';
+      return addr.slice(0, 6) + '...' + addr.slice(-4);
+    }
+
+    function saveWalletToStorage() {
+      localStorage.setItem('walletAddress', walletAddress || '');
+    }
+
+    function loadWalletFromStorage() {
+      const saved = localStorage.getItem('walletAddress');
+      if (saved && typeof window.ethereum !== 'undefined') {
+        connectWallet();
+      }
+    }
+
+    // Listen for account changes
+    if (typeof window.ethereum !== 'undefined') {
+      window.ethereum.on('accountsChanged', (accounts) => {
+        if (accounts.length > 0) {
+          walletAddress = accounts[0];
+          updateWalletUI();
+          saveWalletToStorage();
+        } else {
+          walletAddress = null;
+          updateWalletUI();
+          localStorage.setItem('walletAddress', '');
+        }
+      });
+      
+      window.ethereum.on('chainChanged', () => {
+        window.location.reload();
+      });
+    }
     const chainLinks = {
       ETH: (addr, tx) => `https://etherscan.io/address/${addr}`,
       SOL: (addr, tx) => `https://solscan.io/tx/${tx}`,
@@ -284,11 +389,6 @@
 
     function formatTime(timestamp) {
       return new Date(timestamp * 1000).toLocaleString('zh-CN');
-    }
-
-    function shortenAddress(addr) {
-      if (!addr) return '';
-      return addr.slice(0, 6) + '...' + addr.slice(-4);
     }
 
     function renderContracts() {
@@ -478,6 +578,7 @@
 
     fetchData();
     renderMonitorList();
+    loadWalletFromStorage();
     setInterval(fetchData, 3000);
     setInterval(renderMonitorList, 10000);
   </script>
