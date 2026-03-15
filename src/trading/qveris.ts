@@ -48,10 +48,22 @@ export class QVerisClient {
         { headers: this.getHeaders(), timeout: 10000 }
       );
 
-      this.searchId = response.data.search_id;
-      this.availableTools = response.data.tools;
+      const data = response.data;
+      this.searchId = data.search_id;
       
-      return response.data;
+      const tools = (data.results || data.tools || []).map((t: any) => ({
+        tool_id: t.tool_id,
+        name: t.name,
+        description: t.description,
+        params_schema: t.params || {},
+        examples: t.examples ? [JSON.stringify(t.examples)] : [],
+        weighted_success_rate: t.stats?.success_rate,
+        avg_execution_time: t.stats?.avg_execution_time_ms
+      }));
+      
+      this.availableTools = tools;
+      
+      return { search_id: data.search_id, tools };
     } catch (error: any) {
       throw new Error(`QVeris search failed: ${error.message}`);
     }

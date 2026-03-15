@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { config, chainConfigs, initTrading } from './config';
 import { ETHMonitor } from './monitors/eth';
 import { SOLMonitor } from './monitors/sol';
