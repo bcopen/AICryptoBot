@@ -274,6 +274,7 @@
     <div class="tab-bar">
       <button class="tab-btn active" onclick="showTab('new')">新合约监控</button>
       <button class="tab-btn" onclick="showTab('track')">合约追踪</button>
+      <button class="tab-btn" onclick="showTab('trade')">交易下单</button>
     </div>
     
     <div class="section active" id="section-new">
@@ -289,6 +290,57 @@
     <div class="section" id="section-track">
       <div class="contract-list" id="trackList">
         <div class="empty">暂无追踪中的合约</div>
+      </div>
+    </div>
+    
+    <div class="section" id="section-trade">
+      <div class="monitor-panel">
+        <h3>📈 交易下单</h3>
+        <div class="monitor-form">
+          <select id="tradeExchange">
+            <option value="BINANCE">Binance</option>
+            <option value="OKX">OKX</option>
+            <option value="UNISWAP">Uniswap</option>
+          </select>
+          <input type="text" id="tradeSymbol" placeholder="交易对 (如 BTC/USDT)">
+          <select id="tradeSide">
+            <option value="BUY">买入</option>
+            <option value="SELL">卖出</option>
+          </select>
+          <select id="tradeType">
+            <option value="MARKET">市价</option>
+            <option value="LIMIT">限价</option>
+          </select>
+          <input type="number" id="tradeAmount" placeholder="数量">
+          <input type="number" id="tradePrice" placeholder="价格 (限价单)" style="display:none">
+          <button onclick="createOrder()">下单</button>
+        </div>
+      </div>
+      
+      <div class="monitor-panel">
+        <h3>💰 账户余额</h3>
+        <div style="display:flex;gap:10px;margin-bottom:15px;">
+          <select id="balanceExchange">
+            <option value="BINANCE">Binance</option>
+            <option value="OKX">OKX</option>
+            <option value="UNISWAP">Uniswap</option>
+          </select>
+          <button class="filter-btn" onclick="loadBalance()">查询</button>
+        </div>
+        <div id="balanceList" class="contract-list"></div>
+      </div>
+      
+      <div class="monitor-panel">
+        <h3>📋 订单记录</h3>
+        <div style="display:flex;gap:10px;margin-bottom:15px;">
+          <select id="ordersExchange">
+            <option value="BINANCE">Binance</option>
+            <option value="OKX">OKX</option>
+            <option value="UNISWAP">Uniswap</option>
+          </select>
+          <button class="filter-btn" onclick="loadOrders()">查询</button>
+        </div>
+        <div id="ordersList" class="contract-list"></div>
       </div>
     </div>
     
@@ -542,12 +594,117 @@
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       
       if (tab === 'new') {
-        document.querySelector('.tab-btn:first-child').classList.add('active');
+        document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
         document.getElementById('section-new').classList.add('active');
-      } else {
-        document.querySelector('.tab-btn:last-child').classList.add('active');
+      } else if (tab === 'track') {
+        document.querySelector('.tab-btn:nth-child(2)').classList.add('active');
         document.getElementById('section-track').classList.add('active');
         loadTrackedContracts();
+      } else if (tab === 'trade') {
+        document.querySelector('.tab-btn:nth-child(3)').classList.add('active');
+        document.getElementById('section-trade').classList.add('active');
+      }
+    }
+
+    // Trading functions
+    document.getElementById('tradeType').addEventListener('change', function() {
+      document.getElementById('tradePrice').style.display = this.value === 'LIMIT' ? 'block' : 'none';
+    });
+
+    async function createOrder() {
+      const exchange = document.getElementById('tradeExchange').value;
+      const symbol = document.getElementById('tradeSymbol').value;
+      const side = document.getElementById('tradeSide').value;
+      const type = document.getElementById('tradeType').value;
+      const amount = document.getElementById('tradeAmount').value;
+      const price = document.getElementById('tradePrice').value;
+
+      if (!symbol || !amount) {
+        alert('请填写完整信息');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/trading/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exchange, symbol, side, type, amount, price })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          alert('下单成功！订单ID: ' + data.id);
+          loadOrders();
+        } else {
+          alert('下单失败: ' + data.error);
+        }
+      } catch (e) {
+        alert('下单失败: ' + e.message);
+      }
+    }
+
+    async function loadBalance() {
+      const exchange = document.getElementById('balanceExchange').value;
+      const list = document.getElementById('balanceList');
+      
+      try {
+        const res = await fetch(`/api/trading/balance/${exchange}`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          list.innerHTML = data.map(b => `
+            <div class="contract-card">
+              <div class="contract-header">
+                <span class="chain-badge chain-${exchange === 'UNISWAP' ? 'ETH' : exchange === 'BINANCE' ? 'ETH' : 'SOL'}">${b.asset}</span>
+              </div>
+              <div class="contract-details">
+                <div class="detail-item">可用: <span class="detail-value">${b.free}</span></div>
+                <div class="detail-item">冻结: <span class="detail-value">${b.locked}</span></div>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          list.innerHTML = '<div class="empty">' + (data.error || '获取失败') + '</div>';
+        }
+      } catch (e) {
+        list.innerHTML = '<div class="empty">获取失败: ' + e.message + '</div>';
+      }
+    }
+
+    async function loadOrders() {
+      const exchange = document.getElementById('ordersExchange').value;
+      const list = document.getElementById('ordersList');
+      
+      try {
+        const res = await fetch(`/api/trading/orders/${exchange}`);
+        const data = await res.json();
+        
+        if (res.ok) {
+          if (data.length === 0) {
+            list.innerHTML = '<div class="empty">暂无订单</div>';
+            return;
+          }
+          
+          list.innerHTML = data.map(o => `
+            <div class="contract-card">
+              <div class="contract-header">
+                <span class="chain-badge chain-${o.side === 'BUY' ? 'ETH' : 'SOL'}">${o.side} ${o.type}</span>
+                <span class="timestamp">${o.status}</span>
+              </div>
+              <div class="contract-address">${o.symbol}</div>
+              <div class="contract-details">
+                <div class="detail-item">数量: <span class="detail-value">${o.amount}</span></div>
+                <div class="detail-item">成交: <span class="detail-value">${o.filledAmount}</span></div>
+                <div class="detail-item">价格: <span class="detail-value">${o.price || '市价'}</span></div>
+                <div class="detail-item">订单ID: <span class="detail-value">${o.orderId || o.id}</span></div>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          list.innerHTML = '<div class="empty">' + (data.error || '获取失败') + '</div>';
+        }
+      } catch (e) {
+        list.innerHTML = '<div class="empty">获取失败: ' + e.message + '</div>';
       }
     }
 

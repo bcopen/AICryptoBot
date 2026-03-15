@@ -1,4 +1,5 @@
 import { MonitorOptions, NotificationConfig } from '../types';
+import { initExchange } from '../trading';
 
 export const config: MonitorOptions = {
   chains: ['ETH', 'SOL', 'BSC'],
@@ -14,6 +15,34 @@ export const config: MonitorOptions = {
     }
   }
 };
+
+export const tradingConfig = {
+  BINANCE: {
+    apiKey: process.env.BINANCE_API_KEY || '',
+    apiSecret: process.env.BINANCE_API_SECRET || ''
+  },
+  OKX: {
+    apiKey: process.env.OKX_API_KEY || '',
+    apiSecret: process.env.OKX_API_SECRET || '',
+    passphrase: process.env.OKX_PASSPHRASE || ''
+  },
+  UNISWAP: {
+    rpcUrl: process.env.ETH_RPC_URL || 'https://eth.llamarpc.com',
+    privateKey: process.env.UNISWAP_PRIVATE_KEY || ''
+  }
+};
+
+export function initTrading(): void {
+  if (tradingConfig.BINANCE.apiKey && tradingConfig.BINANCE.apiSecret) {
+    initExchange({ type: 'BINANCE', ...tradingConfig.BINANCE });
+  }
+  if (tradingConfig.OKX.apiKey && tradingConfig.OKX.apiSecret && tradingConfig.OKX.passphrase) {
+    initExchange({ type: 'OKX', ...tradingConfig.OKX });
+  }
+  if (tradingConfig.UNISWAP.privateKey && tradingConfig.UNISWAP.rpcUrl) {
+    initExchange({ type: 'UNISWAP', ...tradingConfig.UNISWAP });
+  }
+}
 
 export const chainConfigs = {
   ETH: {

@@ -1,4 +1,4 @@
-import { config, chainConfigs } from './config';
+import { config, chainConfigs, initTrading } from './config';
 import { ETHMonitor } from './monitors/eth';
 import { SOLMonitor } from './monitors/sol';
 import { BSCMonitor } from './monitors/bsc';
@@ -58,6 +58,8 @@ class ContractMonitor {
     }
   }
 }
+
+initTrading();
 
 const monitor = new ContractMonitor();
 monitor.start().catch(console.error);

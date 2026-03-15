@@ -2,6 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { NewContract, ChainType } from '../types';
+import { 
+  getBalance, 
+  getTicker, 
+  getAllTickers, 
+  createOrder, 
+  cancelOrder, 
+  getOpenOrders,
+  getOrders 
+} from '../trading';
+import { ExchangeType } from '../trading/types';
 
 const app = express();
 app.use(cors());
@@ -117,6 +127,82 @@ app.delete('/api/monitor/:chain/:address', (req, res) => {
   const deleted = monitoredContracts.delete(key);
   
   res.json({ success: deleted });
+});
+
+// Trading API endpoints
+
+app.get('/api/trading/balance/:exchange', async (req, res) => {
+  try {
+    const { exchange } = req.params as { exchange: ExchangeType };
+    const balance = await getBalance(exchange);
+    res.json(balance);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/trading/ticker/:exchange', async (req, res) => {
+  try {
+    const { exchange } = req.params as { exchange: ExchangeType };
+    const { symbol } = req.query;
+    
+    if (symbol) {
+      const ticker = await getTicker(exchange, symbol as string);
+      res.json(ticker);
+    } else {
+      const tickers = await getAllTickers(exchange);
+      res.json(tickers);
+    }
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.post('/api/trading/order', async (req, res) => {
+  try {
+    const { exchange, symbol, side, type, amount, price } = req.body;
+    
+    if (!exchange || !symbol || !side || !type || !amount) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const order = await createOrder({
+      exchange,
+      symbol,
+      side,
+      type,
+      amount: parseFloat(amount),
+      price: price ? parseFloat(price) : undefined
+    });
+    
+    res.json(order);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/trading/order/:exchange/:symbol/:orderId', async (req, res) => {
+  try {
+    const { exchange, symbol, orderId } = req.params as { exchange: ExchangeType; symbol: string; orderId: string };
+    const order = await cancelOrder(exchange, symbol, orderId);
+    res.json(order);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/trading/orders/:exchange', async (req, res) => {
+  try {
+    const { exchange } = req.params as { exchange: ExchangeType };
+    const orders = await getOpenOrders(exchange);
+    res.json(orders);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get('/api/trading/orders', (req, res) => {
+  res.json(getOrders());
 });
 
 const PORT = process.env.PORT || 3000;
