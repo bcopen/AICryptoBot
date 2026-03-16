@@ -42,7 +42,15 @@ const demoData: NewContract[] = [
     blockNumber: 24660300,
     timestamp: Math.floor(Date.now() / 1000) - 300,
     txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-    deployer: '0xdeployer1111111111111111111111111111111'
+    deployer: '0xdeployer1111111111111111111111111111111',
+    tokenInfo: {
+      name: 'Example Token',
+      symbol: 'EXT',
+      decimals: 18,
+      totalSupply: '1000000000',
+      holderCount: 1523,
+      transferCount: 8942
+    }
   },
   {
     address: 'CrU8xTndy2VoPibSsoMwbn2o2JnKLw3XGr5GLzhV4P5',
@@ -58,7 +66,15 @@ const demoData: NewContract[] = [
     blockNumber: 86669000,
     timestamp: Math.floor(Date.now() / 1000) - 900,
     txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-    deployer: '0xdeployer2222222222222222222222222222222'
+    deployer: '0xdeployer2222222222222222222222222222222',
+    tokenInfo: {
+      name: 'BEP20 Token',
+      symbol: 'BEP',
+      decimals: 18,
+      totalSupply: '5000000000',
+      holderCount: 3210,
+      transferCount: 15678
+    }
   }
 ];
 

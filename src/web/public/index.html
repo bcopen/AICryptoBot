@@ -458,10 +458,21 @@
       list.innerHTML = filtered.map(c => `
         <div class="contract-card">
           <div class="contract-header">
-            <span class="chain-badge chain-${c.chain}">${chainNames[c.chain]}</span>
+            <span class="chain-badge chain-${c.chain}">${chainNames[c.chain]}${c.tokenInfo ? ' - ' + c.tokenInfo.symbol : ''}</span>
             <span class="timestamp">${formatTime(c.timestamp)}</span>
           </div>
           <div class="contract-address">${c.address}</div>
+          ${c.tokenInfo ? `
+          <div class="token-info" style="margin: 10px 0; padding: 10px; background: #21262d; border-radius: 6px;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:13px;">
+              <div>代币名称: <span class="detail-value">${c.tokenInfo.name}</span></div>
+              <div>代币符号: <span class="detail-value">${c.tokenInfo.symbol}</span></div>
+              <div>总供应量: <span class="detail-value">${parseFloat(c.tokenInfo.totalSupply).toLocaleString()}</span></div>
+              <div>持币地址: <span class="detail-value">${c.tokenInfo.holderCount || '-'}</span></div>
+              <div>转账次数: <span class="detail-value">${c.tokenInfo.transferCount || '-'}</span></div>
+            </div>
+          </div>
+          ` : ''}
           <div class="contract-details">
             <div class="detail-item">区块: <span class="detail-value">${c.blockNumber.toLocaleString()}</span></div>
             <div class="detail-item">部署者: <span class="detail-value">${shortenAddress(c.deployer)}</span></div>

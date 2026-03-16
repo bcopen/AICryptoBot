@@ -1,14 +1,25 @@
-import { ethers, Contract, Interface } from 'ethers';
+import { ethers, Contract } from 'ethers';
 import { NewContract, MonitorConfig } from '../types';
+import { TokenAnalyzer } from './token-analyzer';
+
+const ERC20_ABI = [
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function totalSupply() view returns (uint256)'
+];
 
 export class ETHMonitor {
   private provider: ethers.JsonRpcProvider;
+  private tokenAnalyzer: TokenAnalyzer;
   private currentBlock: number;
   private startBlock: number;
   private knownContracts: Set<string> = new Set();
+  private analyzedContracts: Set<string> = new Set();
 
   constructor(config: MonitorConfig) {
     this.provider = new ethers.JsonRpcProvider(config.rpcUrl);
+    this.tokenAnalyzer = new TokenAnalyzer(config.rpcUrl);
     this.startBlock = config.startBlock || 0;
     this.currentBlock = this.startBlock;
   }
@@ -64,12 +75,45 @@ export class ETHMonitor {
             deployer: txObj.from
           };
 
-          console.log(`[ETH] New contract: ${contractAddress}`);
+          if (!this.analyzedContracts.has(contractAddress)) {
+            this.analyzedContracts.add(contractAddress);
+            const tokenInfo = await this.analyzeToken(contractAddress);
+            if (tokenInfo) {
+              contract.tokenInfo = tokenInfo;
+            }
+          }
+
+          console.log(`[ETH] New contract: ${contractAddress}${contract.tokenInfo ? ` (${contract.tokenInfo.symbol})` : ''}`);
           onNewContract(contract);
         }
       }
     } catch (error) {
       console.error(`[ETH] Error checking block ${blockNum}:`, error);
+    }
+  }
+
+  private async analyzeToken(address: string): Promise<NewContract['tokenInfo'] | null> {
+    try {
+      const contract = new Contract(address, ERC20_ABI, this.provider);
+      const [name, symbol, decimals, totalSupply] = await Promise.all([
+        contract.name().catch(() => null),
+        contract.symbol().catch(() => null),
+        contract.decimals().catch(() => 18),
+        contract.totalSupply().catch(() => null)
+      ]);
+
+      if (!name || !symbol) return null;
+
+      return {
+        name,
+        symbol,
+        decimals,
+        totalSupply: ethers.formatUnits(totalSupply, decimals),
+        holderCount: 1,
+        transferCount: 0
+      };
+    } catch {
+      return null;
     }
   }
 }

@@ -1,5 +1,14 @@
 export type ChainType = 'ETH' | 'SOL' | 'BSC';
 
+export interface TokenInfo {
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;
+  holderCount?: number;
+  transferCount?: number;
+}
+
 export interface NewContract {
   address: string;
   chain: ChainType;
@@ -7,6 +16,7 @@ export interface NewContract {
   timestamp: number;
   txHash: string;
   deployer: string;
+  tokenInfo?: TokenInfo;
 }
 
 export interface MonitorConfig {
